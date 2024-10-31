@@ -130,3 +130,45 @@ const { name, doubleCount } = storeToRefs(store)
 const { increment } = store
 </script>
 ```
+# 好用插件
+## pinia持久化插件
+- 部署
+    ```javascript
+    npm i pinia-plugin-persistedstate
+    ```
+- 应用
+    ```javascript
+    //应用将插件添加到你的 pinia 实例中
+    import { createPinia } from 'pinia'
+    import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
+    const pinia = createPinia()
+    pinia.use(piniaPluginPersistedstate)
+    ```
+- 用法
+    ```javascript
+    //在声明您的store时，请将新persist选项设置为 true。
+    import { defineStore } from 'pinia'
+    import { ref } from 'vue'
+
+    export const useStore = defineStore(
+    'main',
+    () => {
+        const someState = ref('hello pinia')
+        return { someState }
+    },
+    {
+        persist: true,
+    },
+    )
+    ```
+    ```javascript
+    import { defineStore } from 'pinia'
+    export const useStore = defineStore('main', {
+    state: () => {
+        return {
+        someState: 'hello pinia',
+        }
+    },
+    persist: true,
+    })
+    ```
