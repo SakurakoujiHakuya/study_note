@@ -81,3 +81,67 @@ why?
 >我们注意到，原始示例显示的是 “Guest #2”、“Guest #4” 和 “Guest #6”，而不是 “Guest #1”、“Guest #2” 和 “Guest #3”。原来的函数并不纯粹，因此调用它两次就出现了问题。但对于修复后的纯函数版>本，即使调用该函数两次也能得到正确结果。纯函数仅仅执行计算，因此调用它们两次不会改变任何东西 — 就像两次调用 double(2) 并不会改变返回值，两次求解 y = 2x 不会改变 y 的值一样。相同的输入，总>是返回相同的输出。
 >
 >严格模式在生产环境下不生效，因此它不会降低应用程序的速度。如需引入严格模式，你可以用 <React.StrictMode> 包裹根组件。一些框架会默认这样做。
+
+## state
+### state如一张快照
+“正在渲染” 就意味着 React 正在调用你的组件——一个函数。你从该函数返回的 JSX 就像是在某个时间点上 UI 的快照。它的 props、事件处理函数和内部变量都是 根据**当前渲染时的 state**被计算出来的。
+
+与照片或电影画面不同，你返回的 UI “快照”是可交互的。它其中包括类似事件处理函数的逻辑，这些逻辑用于指定如何对输入作出响应。React 随后会更新屏幕来匹配这张快照，并绑定事件处理函数。因此，按下按钮就会触发你 JSX 中的点击事件处理函数。
+
+当 React 重新渲染一个组件时：
+
+- React 会再次调用你的函数
+- 函数会返回新的 JSX 快照
+- React 会更新界面以匹配返回的快照
+
+作为一个组件的记忆，state 不同于在你的函数返回之后就会消失的普通变量。state 实际上“活”在 React 本身中——就像被摆在一个架子上！——位于你的函数之外。当 React 调用你的组件时，它会为特定的那一次渲染提供一张 state 快照。你的组件会在其 JSX 中返回一张包含一整套新的 props 和事件处理函数的 UI 快照 ，其中所有的值都是 根据**那一次渲染中 state 的值** 被计算出来的！
+简单看一个例子
+
+```javascript
+import { useState } from 'react';
+
+export default function Counter() {
+  const [number, setNumber] = useState(0);
+
+  return (
+    <>
+      <h1>{number}</h1>
+      <button onClick={() => {
+        setNumber(number + 1);
+        setNumber(number + 1);
+        setNumber(number + 1);
+      }}>+3</button>
+    </>
+  )
+}
+```
+按下按钮number加几？是3吗？实际上是1。
+这是因为
+>设置 state 只会为下一次渲染变更 state 的值。在第一次渲染期间，number 为 0。这也就解释了为什么在 那次渲染中的 onClick 处理函数中，即便在调用了 setNumber(number + 1) 之后，number 的值也仍然是 0：
+以下是这个按钮的点击事件处理函数通知 React 要做的事情：
+
+>setNumber(number + 1)：number 是 0 所以 setNumber(0 + 1)。
+React 准备在下一次渲染时将 number 更改为 1。
+setNumber(number + 1)：number 是0 所以 setNumber(0 + 1)。
+React 准备在下一次渲染时将 number 更改为 1。
+setNumber(number + 1)：number 是0 所以 setNumber(0 + 1)。
+React 准备在下一次渲染时将 number 更改为 1。
+尽管你调用了三次 setNumber(number + 1)，但在 这次渲染的 事件处理函数中 number 会一直是 0，所以你会三次将 state 设置成 1。这就是为什么在你的事件处理函数执行完以后，React 重新渲染的组件中的 number 等于 1 而不是 3。
+
+也就是
+```javascript
+<button onClick={() => {
+  setNumber(number + 1);
+  setNumber(number + 1);
+  setNumber(number + 1);
+}}>+3</button>
+```
+等同于
+```javascript
+<button onClick={() => {
+  setNumber(0 + 1);
+  setNumber(0 + 1);
+  setNumber(0 + 1);
+}}>+3</button>
+```
+**一个 state 变量的值永远不会在一次渲染的内部发生变化**
