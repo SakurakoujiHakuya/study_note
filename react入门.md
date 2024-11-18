@@ -145,3 +145,33 @@ React 准备在下一次渲染时将 number 更改为 1。
 }}>+3</button>
 ```
 **一个 state 变量的值永远不会在一次渲染的内部发生变化**
+
+# 插件
+## 状态管理
+### zustand
+- 部署
+  ```javascript
+  npm i zustand
+  ```
+- 示例
+  ```javascript
+  import { create } from 'zustand'
+  const useStore = create((set) => ({
+    bears: 0,
+    addBear: () => set((state) => ({ bears: state.bears + 1 })),
+    removeBear: () => set((state) => ({ bears: 0 }))
+  }))
+  function BearCounter() {
+    const bears = useStore(state => state.bears)
+    return <h1>{bears}</h1>
+  }
+  export default () => {
+    return (
+      <div>
+        <BearCounter />
+        <button onClick={useStore((state) => state.addBear)}>add</button>
+        <button onClick={useStore((state) => state.removeBear)}>remove</button>
+      </div >
+    )
+  }
+  ```

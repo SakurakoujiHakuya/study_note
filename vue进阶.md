@@ -172,3 +172,82 @@ const { increment } = store
     persist: true,
     })
     ```
+# 坑
+## 典中典之vue的偷懒导致本地图片切换异常
+**什么情况下会产生？**
+先贴一段代码
+```javascript
+<template>
+    <div class="security">
+        <input type="file" ref="fileInput" @change="onFileChange" style="display: none;" multiple />
+        <div class="images-container">
+            <div class="image-wrapper">
+                <img v-show="diagnosisStore.leftImg !== ''" :src="diagnosisStore.leftImg" alt="" />
+                <button v-show="diagnosisStore.leftImg !== ''" @click="openImage(diagnosisStore.leftImg)">打开图片</button>
+            </div>
+            <div class="image-wrapper">
+                <img v-show="diagnosisStore.rightImg !== ''" :src="diagnosisStore.rightImg" alt=""
+                    class="post-diagnosis" />
+                <button v-show="diagnosisStore.rightImg !== ''"
+                    @click="openImage(diagnosisStore.rightImg)">打开图片</button>
+            </div>
+        </div>
+        <div class="eventButton">
+            <button class="upload-button" @click="triggerFileUpload">选择图像</button>
+        </div>
+        <div v-if="isLoading" class="loading-overlay">
+            <div class="spinner"></div>
+            <p>正在处理，请稍候...</p>
+        </div>
+    </div>
+</template>
+
+<script setup lang='ts'>
+import { ref } from 'vue';
+import axios from 'axios';
+import useDiagnosisStore from '../store/diagnosis';
+const diagnosisStore = useDiagnosisStore();
+const fileInput = ref<HTMLInputElement | null>(null);
+const isLoading = ref<boolean>(false);
+
+const onFileChange = async (event: Event) => {
+    const files = (event.target as HTMLInputElement).files;
+    if (files && files.length > 0) {
+        // 清空图片路径
+        diagnosisStore.leftImg = '';
+        diagnosisStore.rightImg = '';
+        isLoading.value = true; // 开始加载
+
+        // 将文件转换为 URL 并存储
+        const file = files[0];
+
+        // 上传图片并保存到服务器
+        const formData = new FormData();
+        formData.append('file', file, 'pt.jpg');
+        await axios.post('/upload-diagnosis', formData);
+
+        // 运行 Python 脚本
+        await axios.post('/run-script');
+
+        // 添加时间戳以防止缓存
+        const timestamp = new Date().getTime();
+
+        // 更新左侧的图片
+        diagnosisStore.leftImg = `/input/pt.jpg?timestamp=${timestamp}`;
+
+        // 更新右侧的图片
+        diagnosisStore.rightImg = `/output/feature_map_layer_0.png?timestamp=${timestamp}`;
+
+        isLoading.value = false; // 结束加载
+    }
+};
+```
+可以注意到**diagnosisStore.leftImg**的值要么为''要么为/input/pt.jpg，但是即使是一直等于/input/pt.jpg效果也是一样的，直接说重点：当/input/pt.jpg这个图片发生变化，被替换为其他图片时，vue并不知道这张图片发生了变化，所以页面上显示的还是最开始的图片。我试过各自方法：例如让**diagnosisStore.leftImg**等于''，然后再等于/input/pt.jpg，或者说给前面的容器一个:key=xxx，然后不断更新xxx的值等方法，都不顶用，vue可能记住了/input/pt.jpg一开始的值，然后将其缓存，之后只要路径还是/input/pt.jpg就会从缓存里去取值，这就导致了图片更新的失败/
+**解决办法：**
+像这样加个时间戳，然后一切都搞定了
+```javascript
+       const timestamp = new Date().getTime();
+
+        // 更新左侧的图片
+        diagnosisStore.leftImg = `/input/pt.jpg?timestamp=${timestamp}`;
+```
