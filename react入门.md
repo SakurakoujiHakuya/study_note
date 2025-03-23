@@ -149,6 +149,8 @@ React 准备在下一次渲染时将 number 更改为 1。
 # 插件
 ## 状态管理
 ### zustand
+- 文档地址
+ https://ouweiya.github.io/zustand-zh/docs/guides/auto-generating-selectors
 - 部署
   ```javascript
   npm i zustand
@@ -174,4 +176,41 @@ React 准备在下一次渲染时将 number 更改为 1。
       </div >
     )
   }
+
   ```
+#### 注意的点
+##### 不必要的渲染
+```javascript
+       const { cats, increaseBigCats, increaseSmallCats, summary } = useCatStore()//可能引起不必要的渲染，影响性能
+```
+```javascript
+    const bigCats = useCatStore(state => state.cats.bigCats)//而这样不会
+```
+##### ts的括号 需要在<>后补上括号
+```javascript
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
+
+type TCatStoreState = {
+    cats: {
+        bigCats: number;
+        smallCats: number;
+    }
+    increaseBigCats: () => void;
+    increaseSmallCats: () => void;
+    summary: () => number;
+};
+
+
+export const useCatStore = create<TCatStoreState>()(immer((set, get) => ({
+    cats: {
+        bigCats: 0,
+        smallCats: 0
+    },
+    increaseBigCats: () => set((state) => { state.cats.bigCats++ }),
+    increaseSmallCats: () => set((state) => { state.cats.smallCats++ }),
+    summary: () => get().cats.bigCats + get().cats.smallCats
+})));
+```
+
+    
