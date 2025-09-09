@@ -146,6 +146,194 @@ React 准备在下一次渲染时将 number 更改为 1。
 ```
 **一个 state 变量的值永远不会在一次渲染的内部发生变化**
 
+## 性能优化
+
+### 分包懒加载
+```javascript
+import Discover from '@/views/discover';
+import Mine from '@/views/mine';
+import Focus from '@/views/focus';
+import Download from '@/views/download';
+```
+改成
+```javascript
+import { lazy } from 'react';
+
+const Discover = lazy(() => import('@/views/discover'));
+const Mine = lazy(() => import('@/views/mine'));
+const Focus = lazy(() => import('@/views/focus'));
+const Download = lazy(() => import('@/views/download'));
+```
+#### **这种写法的好处**
+
+这里使用了 React 的 `lazy` 函数和动态 `import`，实现了**路由组件的懒加载**。这种写法有以下好处：
+
+---
+
+##### **1. 减少初始加载时间**
+- **原理**：懒加载会将每个路由组件单独打包成一个文件（代码分割），只有在用户访问对应路由时才会加载该组件。
+- **好处**：初始加载时只加载必要的代码，减少了主包的体积，从而提升了页面的加载速度。
+
+---
+
+##### **2. 提高性能**
+- **按需加载**：只有用户访问某个路由时，才会加载对应的组件代码，避免加载未使用的代码。
+- **用户体验**：对于大型应用，懒加载可以显著减少首屏加载时间，提升用户体验。
+
+---
+
+##### **3. 简化代码分割**
+- 使用 `lazy` 和动态 `import`，可以轻松实现代码分割，而无需手动配置 Webpack 或其他打包工具。
+
+---
+
+##### **4. 与 React 的 Suspense 配合**
+- React 的 `lazy` 通常与 `Suspense` 一起使用，可以在组件加载时显示一个占位符（如加载动画），提升用户体验。
+
+---
+
+#### **注意事项**
+
+##### **1. 必须与 `Suspense` 一起使用**
+- `lazy` 加载的组件在加载过程中会返回一个 `Promise`，因此需要用 `Suspense` 包裹，提供加载状态的占位符。
+- 示例：
+  ```tsx
+  import { Suspense } from 'react';
+
+  const App = () => (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Routes>
+        {/* 路由配置 */}
+      </Routes>
+    </Suspense>
+  );
+  ```
+
+##### **2. 动态 `import` 的路径**
+- 动态 `import` 的路径必须是静态的，不能是动态变量，否则会导致打包失败或无法正确加载模块。
+
+##### **3. SEO 问题**
+- 懒加载的组件在首次加载时依赖 JavaScript，这可能会影响搜索引擎的抓取和索引。
+- **解决方法**：对于需要 SEO 的页面，可以使用服务端渲染（SSR）或静态生成（SSG）。
+
+##### **4. 异常处理**
+- 如果懒加载的组件加载失败（如网络问题），需要提供错误边界来捕获错误并显示友好的提示。
+- 示例：
+  ```tsx
+  import { Suspense } from 'react';
+
+  const ErrorBoundary = ({ children }: { children: React.ReactNode }) => {
+    try {
+      return <>{children}</>;
+    } catch (error) {
+      return <div>Error loading component</div>;
+    }
+  };
+
+  const App = () => (
+    <ErrorBoundary>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          {/* 路由配置 */}
+        </Routes>
+      </Suspense>
+    </ErrorBoundary>
+  );
+  ```
+
+##### **5. 可能的闪烁问题**
+- 如果懒加载的组件加载时间较长，用户可能会看到加载占位符闪烁。
+- **优化方法**：
+  - 使用更快的网络或 CDN 加速资源加载。
+  - 提供更友好的加载占位符（如骨架屏）。
+
+---
+
+#### **总结**
+
+##### **好处**：
+- 减少初始加载时间，提升性能。
+- 实现代码分割，按需加载。
+- 简化代码分割的实现。
+
+##### **注意事项**：
+- 必须与 `Suspense` 一起使用。
+- 动态 `import` 路径必须是静态的。
+- 注意 SEO 和加载失败的处理。
+
+这种写法非常适合大型应用，尤其是路由较多且组件体积较大的场景，可以显著提升性能和用户体验。
+### memo
+在 React 中，`memo` 是一个高阶组件（Higher-Order Component），用于优化函数组件的性能。它通过**浅比较**（shallow comparison）来决定是否重新渲染组件。
+
+---
+
+#### **`memo` 的作用**
+1. **避免不必要的重新渲染**：
+   - 当父组件重新渲染时，如果传递给子组件的 `props` 没有发生变化，`memo` 会阻止子组件的重新渲染，从而提高性能。
+
+2. **浅比较 `props`**：
+   - `memo` 默认会对传递给组件的 `props` 进行浅比较（shallow comparison）。
+   - 如果 `props` 的值没有变化（对于对象和数组是引用未变），组件不会重新渲染。
+
+---
+
+#### **使用场景**
+- **适合场景**：
+  - 子组件的渲染开销较大（如复杂的 UI 或计算）。
+  - 父组件频繁更新，但子组件的 `props` 很少变化。
+
+- **不适合场景**：
+  - 子组件的 `props` 经常变化。
+  - 子组件的渲染开销很小，使用 `memo` 可能得不偿失。
+
+---
+
+#### **代码解析**
+在你的代码中：
+
+```tsx
+export default memo(Download);
+```
+
+- `memo` 包裹了 `Download` 组件。
+- 当父组件重新渲染时，React 会检查 `Download` 组件的 `props` 是否发生变化：
+  - 如果 `props` 没有变化，`Download` 组件不会重新渲染。
+  - 如果 `props` 发生变化，`Download` 组件会重新渲染。
+
+---
+
+#### **示例对比**
+##### **未使用 `memo` 的情况**：
+即使 `props` 没有变化，`Download` 组件也会在父组件重新渲染时重新渲染。
+
+##### **使用 `memo` 的情况**：
+只有当 `props` 的值发生变化时，`Download` 组件才会重新渲染。
+
+---
+
+#### **注意事项**
+1. **浅比较的局限性**：
+   - 如果 `props` 中包含复杂数据结构（如对象或数组），即使内容相同，但引用不同，`memo` 仍会触发重新渲染。
+   - 解决方法：可以通过 `React.memo` 的第二个参数 `areEqual` 提供自定义比较函数。
+
+   示例：
+   ```tsx
+   export default memo(Download, (prevProps, nextProps) => {
+     return prevProps.name === nextProps.name &&
+            prevProps.age === nextProps.age &&
+            prevProps.height === nextProps.height;
+   });
+   ```
+
+2. **不要过度使用**：
+   - 如果组件的渲染开销很小，使用 `memo` 可能会增加不必要的复杂性。
+
+---
+
+#### **总结**
+`memo` 是一个性能优化工具，用于避免不必要的重新渲染。它适用于渲染开销较大的组件，或者当父组件频繁更新但子组件的 `props` 很少变化时。合理使用 `memo` 可以显著提高 React 应用的性能。
+
+
 # 插件
 ## 状态管理
 ### zustand
@@ -212,5 +400,52 @@ export const useCatStore = create<TCatStoreState>()(immer((set, get) => ({
     summary: () => get().cats.bigCats + get().cats.smallCats
 })));
 ```
+# 技巧
+## 编辑代码片段
+可以编写例如这样的代码片段
+```javascript
+import type { FC, ReactNode } from 'react';
+import { memo } from 'react';
+interface Iprops {
+  children?: ReactNode;
+}
 
-    
+// 开发这种写法更好
+const Template: FC<Iprops> = () => {
+  return (
+    <div>
+      <h1>template</h1>
+    </div>
+  );
+};
+
+export default memo(Template);
+```
+然后将其丢入snippet-generator
+https://snippet-generator.app
+得到这样的代码片段
+```javascript
+"react typescript": {
+  "prefix": "tsreact",
+  "body": [
+    "import type { FC, ReactNode } from 'react';",
+    "import { memo } from 'react';",
+    "interface Iprops {",
+    "  children?: ReactNode;",
+    "}",
+    "",
+    "const ${1:home}: FC<Iprops> = () => {",
+    "  return (",
+    "    <div>",
+    "      <h1>${1:home}</h1>",
+    "    </div>",
+    "  );",
+    "};",
+    "",
+    "export default memo(${1:home});",
+    ""
+  ],
+  "description": "react typescript"
+}
+```
+然后使用vscode文件-首选项-配置代码片段，将其粘贴进去
